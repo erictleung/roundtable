@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>RoundTable</title>
+<title>ContactSwap</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
 <style>
@@ -472,6 +472,40 @@
   }
   .connected-banner .check { font-size: 1.1rem; }
 
+  /* ── Contacts textarea ───────────────────────────────────────────── */
+  .contacts-box {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    line-height: 1.7;
+    padding: 0.85rem;
+    width: 100%;
+    resize: vertical;
+    min-height: 120px;
+    outline: none;
+    transition: border-color var(--trans);
+  }
+  .contacts-box:focus { border-color: var(--accent); }
+
+  .copy-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .copy-row .btn { flex: 1; }
+  .copy-confirm {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    white-space: nowrap;
+  }
+  .copy-confirm.visible { opacity: 1; }
+
   /* ── Error ───────────────────────────────────────────────────────── */
   .error-msg {
     background: rgba(255,79,94,0.08);
@@ -518,7 +552,7 @@
   <header>
     <div class="logo">
       <span class="logo-icon">⇄</span>
-      RoundTable
+      ContactSwap
     </div>
     <p class="tagline">// share links with your group — one tap</p>
   </header>
@@ -634,7 +668,15 @@
         Everyone's connected! Here are all the contact links.
       </div>
 
-      <div id="connected-list" class="member-list"></div>
+      <div class="field">
+        <label>Contact list</label>
+        <textarea id="contacts-text" class="contacts-box" readonly></textarea>
+      </div>
+
+      <div class="copy-row">
+        <button class="btn btn-primary" onclick="copyContacts()">Copy all</button>
+        <span id="copy-confirm" class="copy-confirm">Copied!</span>
+      </div>
 
       <button class="btn btn-secondary" onclick="startOver()">Start a new swap</button>
     </div>
@@ -642,7 +684,7 @@
 
 </div>
 
-<footer>roundtable · zero accounts · zero tracking</footer>
+<footer>contactswap · zero accounts · zero tracking</footer>
 
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
@@ -834,21 +876,26 @@ async function connect() {
 
 // ── Connected view ───────────────────────────────────────────────────────────
 function renderConnected(members) {
-  const list = document.getElementById('connected-list');
-  list.innerHTML = members.map(m => {
-    const isMe = m.id === myMemberId;
-    const initial = (m.name || '?')[0].toUpperCase();
-    const color = nameToColor(m.name);
-    return `
-      <div class="member-item ${isMe ? 'is-me' : ''}">
-        <div class="avatar" style="background:${color};color:#fff">${initial}</div>
-        <div class="member-info">
-          <div class="member-name">${esc(m.name)} ${isMe ? '<span class="me-badge">YOU</span>' : ''}</div>
-          <a class="member-url" href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.url)}</a>
-        </div>
-      </div>`;
-  }).join('');
+  const text = members
+    .map(m => `${m.name}: ${m.url}`)
+    .join('\n');
+  document.getElementById('contacts-text').value = text;
   show('s-connected');
+}
+
+async function copyContacts() {
+  const text = document.getElementById('contacts-text').value;
+  const confirm = document.getElementById('copy-confirm');
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Fallback for browsers that block clipboard API
+    const ta = document.getElementById('contacts-text');
+    ta.select();
+    document.execCommand('copy');
+  }
+  confirm.classList.add('visible');
+  setTimeout(() => confirm.classList.remove('visible'), 2000);
 }
 
 // ── Leave / reset ────────────────────────────────────────────────────────────
