@@ -938,13 +938,20 @@ async function api(path, body) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    return await r.json();
+    const data = await r.json();
+    // FastAPI returns {detail: "..."} for HTTP errors; normalise to {error: "..."}
+    if (!r.ok) return { error: data.detail || "Server error (" + r.status + ")" };
+    return data;
   } catch { return { error: 'Network error. Is the server running?' }; }
 }
 
 async function apiFetch(url) {
-  const r = await fetch(url);
-  return await r.json();
+  try {
+    const r = await fetch(url);
+    const data = await r.json();
+    if (!r.ok) return { error: data.detail || "Server error (" + r.status + ")" };
+    return data;
+  } catch { return { error: 'Network error. Is the server running?' }; }
 }
 
 function showErr(el, msg) {

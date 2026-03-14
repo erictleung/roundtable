@@ -315,8 +315,21 @@ async def poll(code: str, member_id: str, count: int = 0):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
 
     member_ids = json.loads(meta.get("member_ids", "[]"))
+
+    # Retry the membership check briefly to handle the race condition where
+    # the browser starts polling immediately after join_room returns, but
+    # the Redis write hasn't propagated to this read yet.
     if member_id not in member_ids:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, "Not a member")
+        for _ in range(5):
+            await asyncio.sleep(0.2)
+            meta = await _get_room_meta(r, code)
+            if meta is None:
+                raise HTTPException(status.HTTP_404_NOT_FOUND, "Room not found")
+            member_ids = json.loads(meta.get("member_ids", "[]"))
+            if member_id in member_ids:
+                break
+        else:
+            raise HTTPException(status.HTTP_403_FORBIDDEN, "Not a member")
 
     # Return immediately if state already changed
     if len(member_ids) != count or meta.get("connected") == "1":
