@@ -264,9 +264,13 @@ async def leave_room(req: RoomMemberRequest):
     return {"ok": True}
 
 
-@app.get('/api/debug/')
+@app.get('/api/debug')
 async def debug():
-    return {"worker_pid": os.getpid(), "room_codes": list(rooms.keys())}
+    return {
+        "worker_pid": os.getpid(),
+        "room_codes": list(rooms.keys()),
+        "room_count": len(rooms),
+    }
 
 
 # ── Static files ──────────────────────────────────────────────────────────────
