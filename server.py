@@ -1,31 +1,14 @@
 #!/usr/bin/env python3
 """
-ContactSwap — Redis-backed rewrite.
-
-Replaces the in-memory `rooms` dict with Leapcell Redis so that room state
-survives restarts and is visible to every instance regardless of how the
-platform routes requests.
-
-Storage layout (Redis keys)
----------------------------
-  room:{code}              — Hash  {code, created_at, last_activity, connected,
-                                     member_ids (JSON list)}
-  room:{code}:member:{id}  — Hash  {id, name, url}
-
-Pub/Sub
--------
-  channel: room:{code}     — Published to whenever a member joins, leaves, or
-                             the room is connected. Wakes up waiting polls
-                             immediately instead of sleeping in a loop.
+ContactSwap — Redis-backed FastAPI app.
 
 Environment variables
 ---------------------
-  REDIS_URL   — Redis connection string, e.g.
-                redis://default:password@host:6379
-                Set this in Leapcell → Service → Environment.
+  REDIS_URL  — connection string, e.g. redis://default:password@host:6379
+               Set this in Leapcell -> Service -> Environment.
 
 Dev server:   uvicorn server:app --reload --port 8080
-Production:   see wsgi.py / README
+Production:   uvicorn wsgi:app --port 8080 --workers 1
 """
 
 import asyncio
@@ -36,6 +19,7 @@ import string
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlparse
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException, status
@@ -43,11 +27,11 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, HttpUrl, field_validator
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-ROOM_TTL = 3600       # seconds; applied as Redis key TTL
-POLL_TIMEOUT = 20     # seconds a long-poll waits for a pub/sub message
-BASE_DIR = Path(__file__).parent
+ROOM_TTL     = 3600   # Redis key TTL in seconds (1 hour)
+POLL_TIMEOUT = 20     # long-poll max wait in seconds
+BASE_DIR     = Path(__file__).parent
 
-# ── Redis client (initialised in lifespan) ────────────────────────────────────
+# ── Redis client (set during lifespan startup) ────────────────────────────────
 _redis: aioredis.Redis | None = None
 
 
@@ -57,24 +41,21 @@ def get_redis() -> aioredis.Redis:
     return _redis
 
 
-# ── Key helpers ───────────────────────────────────────────────────────────────
+# ── Key / channel helpers ─────────────────────────────────────────────────────
 def _new_id(k: int = 12) -> str:
     return "".join(random.choices(string.ascii_lowercase + string.digits, k=k))
-
 
 def _room_key(code: str) -> str:
     return f"room:{code}"
 
-
 def _member_key(code: str, member_id: str) -> str:
     return f"room:{code}:member:{member_id}"
-
 
 def _channel(code: str) -> str:
     return f"room:{code}"
 
 
-# ── Redis helpers ─────────────────────────────────────────────────────────────
+# ── Redis data helpers ────────────────────────────────────────────────────────
 async def _get_room_meta(r: aioredis.Redis, code: str) -> dict | None:
     data = await r.hgetall(_room_key(code))
     if not data:
@@ -97,16 +78,15 @@ async def _room_state(r: aioredis.Redis, code: str) -> dict:
     if not meta:
         return {}
     connected = meta.get("connected") == "1"
-    members = await _get_members(r, code, meta)
+    members   = await _get_members(r, code, meta)
     members_out = (
-        members
-        if connected
+        members if connected
         else [{"id": m["id"], "name": m["name"]} for m in members]
     )
     return {
-        "connected": connected,
+        "connected":    connected,
         "member_count": len(members),
-        "members": members_out,
+        "members":      members_out,
     }
 
 
@@ -119,22 +99,60 @@ async def _new_room_code(r: aioredis.Redis) -> str:
 
 
 async def _touch_room(r: aioredis.Redis, code: str):
-    """Reset TTL and update last_activity timestamp."""
     await r.hset(_room_key(code), "last_activity", str(time.time()))
     await r.expire(_room_key(code), ROOM_TTL)
+
+
+# ── URL validation helper ─────────────────────────────────────────────────────
+def _validate_redis_url(raw: str) -> str:
+    """
+    Strip accidental surrounding quotes/whitespace and validate the URL shape.
+    Raises RuntimeError with a clear message if something looks wrong.
+    """
+    url = raw.strip().strip("'\"")
+    parsed = urlparse(url)
+
+    errors = []
+    if parsed.scheme not in ("redis", "rediss"):
+        errors.append(
+            "scheme must be 'redis' or 'rediss', got: " + repr(parsed.scheme)
+        )
+    if not parsed.hostname:
+        errors.append("no hostname found")
+    if parsed.port is None:
+        errors.append("no port found (expected something like :6379)")
+
+    if errors:
+        msg = (
+            "REDIS_URL is invalid.\n"
+            "  Raw value from environment : " + repr(raw) + "\n"
+            "  After stripping whitespace : " + repr(url) + "\n"
+            "  Problem(s)                 : " + "; ".join(errors) + "\n"
+            "  Expected format            : redis://default:PASSWORD@HOST:6379"
+        )
+        raise RuntimeError(msg)
+
+    return url
 
 
 # ── App lifespan ──────────────────────────────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _redis
-    redis_url = os.environ.get("REDIS_URL", "redis://localhost:6379")
+
+    raw_url   = os.environ.get("REDIS_URL", "redis://localhost:6379")
+    redis_url = _validate_redis_url(raw_url)
+    parsed    = urlparse(redis_url)
+
+    print("Connecting to Redis — host=" + str(parsed.hostname) + " port=" + str(parsed.port))
+
     _redis = aioredis.from_url(redis_url, decode_responses=False)
     try:
         await _redis.ping()
     except Exception as e:
-        raise RuntimeError(f"Could not connect to Redis at {redis_url}: {e}")
-    print(f"Connected to Redis at {redis_url}")
+        raise RuntimeError("Redis ping failed for " + repr(redis_url) + ": " + str(e))
+
+    print("Redis connection established.")
     yield
     await _redis.aclose()
 
@@ -188,9 +206,9 @@ class RoomMemberRequest(BaseModel):
 @app.post("/api/create_room")
 async def create_room(req: CreateRoomRequest):
     r = get_redis()
-    code = await _new_room_code(r)
+    code      = await _new_room_code(r)
     member_id = _new_id()
-    now = time.time()
+    now       = time.time()
 
     await r.hset(_room_key(code), mapping={
         "code":          code,
@@ -213,7 +231,7 @@ async def create_room(req: CreateRoomRequest):
 
 @app.post("/api/join_room")
 async def join_room(req: JoinRoomRequest):
-    r = get_redis()
+    r    = get_redis()
     meta = await _get_room_meta(r, req.code)
 
     if meta is None:
@@ -224,7 +242,7 @@ async def join_room(req: JoinRoomRequest):
                             "This room has already been connected. "
                             "Ask your group to start a new room.")
 
-    member_id = _new_id()
+    member_id  = _new_id()
     member_ids = json.loads(meta.get("member_ids", "[]"))
     member_ids.append(member_id)
 
@@ -238,7 +256,6 @@ async def join_room(req: JoinRoomRequest):
     })
     await r.expire(_member_key(req.code, member_id), ROOM_TTL)
 
-    # Wake up all waiting polls for this room immediately
     await r.publish(_channel(req.code), "join")
 
     return {"room_code": req.code, "member_id": member_id}
@@ -246,7 +263,7 @@ async def join_room(req: JoinRoomRequest):
 
 @app.post("/api/connect")
 async def connect(req: RoomMemberRequest):
-    r = get_redis()
+    r    = get_redis()
     meta = await _get_room_meta(r, req.code)
 
     if meta is None:
@@ -258,8 +275,6 @@ async def connect(req: RoomMemberRequest):
 
     await r.hset(_room_key(req.code), "connected", "1")
     await _touch_room(r, req.code)
-
-    # Wake all waiting polls — they will all see connected=True
     await r.publish(_channel(req.code), "connected")
 
     return {"ok": True}
@@ -267,14 +282,7 @@ async def connect(req: RoomMemberRequest):
 
 @app.get("/api/poll")
 async def poll(code: str, member_id: str, count: int = 0):
-    """
-    Async long-poll backed by Redis Pub/Sub.
-
-    Subscribes to the room's channel. Any publish (join/connect/leave)
-    wakes this coroutine immediately so the client sees the change
-    without waiting up to 1 second as in the old sleep-loop design.
-    """
-    r = get_redis()
+    r    = get_redis()
     meta = await _get_room_meta(r, code)
 
     if meta is None:
@@ -284,11 +292,11 @@ async def poll(code: str, member_id: str, count: int = 0):
     if member_id not in member_ids:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Not a member")
 
-    # Return immediately if state already changed since last poll
+    # Return immediately if state already changed
     if len(member_ids) != count or meta.get("connected") == "1":
         return await _room_state(r, code)
 
-    # Subscribe and block until a message arrives or timeout
+    # Block on pub/sub until a change event or timeout
     pubsub = r.pubsub()
     await pubsub.subscribe(_channel(code))
     try:
@@ -314,7 +322,7 @@ async def poll(code: str, member_id: str, count: int = 0):
 
 @app.post("/api/leave_room")
 async def leave_room(req: RoomMemberRequest):
-    r = get_redis()
+    r    = get_redis()
     meta = await _get_room_meta(r, req.code)
     if meta:
         member_ids = json.loads(meta.get("member_ids", "[]"))
@@ -328,13 +336,35 @@ async def leave_room(req: RoomMemberRequest):
 
 
 # ── Debug endpoint ────────────────────────────────────────────────────────────
-# Useful for confirming Redis connectivity and verifying room keys exist.
-# Remove or restrict this before making the app publicly accessible.
+# Shows Redis connectivity status and live room keys.
+# Remove or restrict access before going public.
 @app.get("/api/debug")
 async def debug():
-    r = get_redis()
-    keys = [k.decode() async for k in r.scan_iter("room:????")]
-    return {"worker_pid": os.getpid(), "room_keys": keys, "room_count": len(keys)}
+    raw_url   = os.environ.get("REDIS_URL", "(not set — using localhost default)")
+    redis_url = raw_url.strip().strip("'\"")
+    parsed    = urlparse(redis_url)
+
+    r         = get_redis()
+    ping_ok   = False
+    ping_error = None
+    try:
+        await r.ping()
+        ping_ok = True
+    except Exception as e:
+        ping_error = str(e)
+
+    keys = [k.decode() async for k in r.scan_iter("room:????")] if ping_ok else []
+
+    return {
+        "worker_pid":   os.getpid(),
+        "redis_scheme": parsed.scheme,
+        "redis_host":   parsed.hostname,
+        "redis_port":   parsed.port,
+        "ping_ok":      ping_ok,
+        "ping_error":   ping_error,
+        "room_keys":    keys,
+        "room_count":   len(keys),
+    }
 
 
 # ── Serve frontend ────────────────────────────────────────────────────────────
