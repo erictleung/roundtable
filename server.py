@@ -186,6 +186,7 @@ async def lifespan(app: FastAPI):
             password=password,
             username="default",
             decode_responses=False,
+            ssl=True,
         )
     else:
         # Fall back to a full REDIS_URL string (local dev or manual config)
