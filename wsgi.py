@@ -1,5 +1,5 @@
 """
-ASGI entry point for Ripple (FastAPI rewrite).
+ASGI entry point for Ripple Meet (FastAPI rewrite).
 
 ⚠️  SINGLE WORKER ONLY — see note below before changing.
 

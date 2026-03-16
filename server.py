@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Ripple — Redis-backed FastAPI app.
+Ripple Meet — Redis-backed FastAPI app.
 
 Signalling strategy
 -------------------
@@ -218,7 +218,7 @@ async def lifespan(app: FastAPI):
 
 
 # ── App ───────────────────────────────────────────────────────────────────────
-app = FastAPI(title="Ripple", lifespan=lifespan)
+app = FastAPI(title="Ripple Meet", lifespan=lifespan)
 
 
 # ── Request schemas ───────────────────────────────────────────────────────────
