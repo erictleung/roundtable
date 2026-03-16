@@ -5,24 +5,34 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>RoundTable</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
-<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:ital,wght@0,300;0,400;0,500;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
 <style>
   /* ── Reset & tokens ──────────────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:        #0c0e10;
-    --surface:   #141618;
-    --surface2:  #1c1f22;
-    --border:    #2a2d31;
-    --accent:    #00e5a0;
-    --accent2:   #00b87c;
-    --danger:    #ff4f5e;
-    --text:      #e8eaed;
-    --muted:     #6b7280;
+    /* Palette: Optimistic, Friendly & Vibrant */
+    --daffodil:   #FFD747;
+    --hotpink:    #AA2377;
+    --cobalt:     #5E69FF;
+    --naranja:    #F87C47;
+    --aqua:       #B0B6BC;
+    --denim:      #19455E;
+
+    --bg:        #F5F0E8;   /* warm cream — CreativeMornings feel */
+    --surface:   #FFFFFF;
+    --surface2:  #FAF7F2;
+    --border:    #E2D9CC;
+    --accent:    var(--hotpink);
+    --accent2:   var(--denim);
+    --accent3:   var(--cobalt);
+    --danger:    #D94040;
+    --text:      #1A1209;   /* near-black warm */
+    --muted:     #7A6E63;
     --mono:      'DM Mono', monospace;
-    --sans:      'Syne', sans-serif;
-    --radius:    10px;
+    --sans:      'Plus Jakarta Sans', sans-serif;
+    --display:   'Fraunces', serif;
+    --radius:    12px;
     --trans:     0.18s cubic-bezier(.4,0,.2,1);
   }
 
@@ -47,30 +57,27 @@
     overflow-x: hidden;
   }
 
-  /* Subtle grid background */
+  /* Warm dot-grid background */
   body::before {
     content: '';
     position: fixed;
     inset: 0;
-    background-image:
-      linear-gradient(var(--border) 1px, transparent 1px),
-      linear-gradient(90deg, var(--border) 1px, transparent 1px);
-    background-size: 48px 48px;
-    opacity: 0.28;
+    background-image: radial-gradient(circle, #D4C5B0 1px, transparent 1px);
+    background-size: 28px 28px;
+    opacity: 0.5;
     pointer-events: none;
     z-index: 0;
   }
 
-  /* Glowing orb */
+  /* Daffodil colour wash at top */
   body::after {
     content: '';
     position: fixed;
-    top: -20%;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 600px;
-    height: 400px;
-    background: radial-gradient(ellipse, rgba(0,229,160,0.07) 0%, transparent 70%);
+    top: -10%;
+    right: -10%;
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(ellipse, rgba(255,215,71,0.18) 0%, transparent 65%);
     pointer-events: none;
     z-index: 0;
   }
@@ -98,45 +105,47 @@
     font-size: 1.6rem;
     font-weight: 800;
     letter-spacing: -0.03em;
-    color: var(--text);
+    color: var(--denim);
   }
 
   .logo-icon {
     display: grid;
     place-items: center;
-    width: 2.2rem;
-    height: 2.2rem;
-    background: var(--accent);
-    border-radius: 8px;
-    color: #000;
-    font-size: 1.1rem;
+    width: 2.4rem;
+    height: 2.4rem;
+    background: var(--daffodil);
+    border-radius: 50%;
+    color: var(--denim);
+    font-size: 1.15rem;
   }
 
   .tagline {
     margin-top: 0.4rem;
     color: var(--muted);
-    font-size: 0.85rem;
-    font-family: var(--mono);
-    letter-spacing: 0.04em;
+    font-size: 0.88rem;
+    font-family: var(--sans);
+    font-style: italic;
+    letter-spacing: 0.01em;
   }
 
   /* ── Card ────────────────────────────────────────────────────────── */
   .card {
     background: var(--surface);
-    border: 1px solid var(--border);
+    border: 1.5px solid var(--border);
     border-radius: var(--radius);
     padding: 1.75rem;
     display: flex;
     flex-direction: column;
     gap: 1.2rem;
+    box-shadow: 0 2px 12px rgba(26,18,9,0.07);
   }
 
   .card-title {
-    font-size: 0.7rem;
+    font-size: 0.68rem;
     font-family: var(--mono);
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: var(--accent);
+    color: var(--hotpink);
     margin-bottom: -0.3rem;
   }
 
@@ -170,8 +179,8 @@
   }
 
   input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0,229,160,0.12);
+    border-color: var(--cobalt);
+    box-shadow: 0 0 0 3px rgba(94,105,255,0.15);
   }
 
   input.code-input {
@@ -202,8 +211,8 @@
     transition: border-color var(--trans), box-shadow var(--trans);
   }
   select:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0,229,160,0.12);
+    border-color: var(--cobalt);
+    box-shadow: 0 0 0 3px rgba(94,105,255,0.15);
   }
   select option { background: var(--surface2); color: var(--text); }
 
@@ -217,8 +226,8 @@
     transition: border-color var(--trans), box-shadow var(--trans);
   }
   .handle-row:focus-within {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(0,229,160,0.12);
+    border-color: var(--cobalt);
+    box-shadow: 0 0 0 3px rgba(94,105,255,0.15);
   }
   .handle-prefix {
     font-family: var(--mono);
@@ -264,11 +273,11 @@
   .btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 
   .btn-primary {
-    background: var(--accent);
-    color: #000;
+    background: var(--hotpink);
+    color: #fff;
     width: 100%;
   }
-  .btn-primary:hover:not(:disabled) { background: #1affc3; }
+  .btn-primary:hover:not(:disabled) { background: #8C1860; }
 
   .btn-secondary {
     background: var(--surface2);
@@ -276,11 +285,11 @@
     border: 1px solid var(--border);
     width: 100%;
   }
-  .btn-secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+  .btn-secondary:hover:not(:disabled) { border-color: var(--hotpink); color: var(--hotpink); }
 
   .btn-connect {
-    background: var(--accent);
-    color: #000;
+    background: var(--naranja);
+    color: #fff;
     width: 100%;
     font-size: 1.05rem;
     padding: 0.85rem;
@@ -348,7 +357,7 @@
     font-size: 2.4rem;
     font-weight: 500;
     letter-spacing: 0.3em;
-    color: var(--accent);
+    color: var(--denim);
   }
 
   .copy-btn {
@@ -362,7 +371,7 @@
     cursor: pointer;
     transition: all var(--trans);
   }
-  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .copy-btn:hover { border-color: var(--hotpink); color: var(--hotpink); }
 
   /* Member list */
   .member-list {
@@ -383,7 +392,8 @@
   }
 
   .member-item.is-me {
-    border-color: rgba(0,229,160,0.3);
+    border-color: rgba(94,105,255,0.35);
+    background: rgba(94,105,255,0.04);
   }
 
   @keyframes fadeSlideIn {
@@ -412,9 +422,9 @@
   .me-badge {
     font-family: var(--mono);
     font-size: 0.65rem;
-    background: rgba(0,229,160,0.12);
-    color: var(--accent);
-    border: 1px solid rgba(0,229,160,0.3);
+    background: rgba(94,105,255,0.1);
+    color: var(--cobalt);
+    border: 1px solid rgba(94,105,255,0.3);
     border-radius: 4px;
     padding: 0.15rem 0.45rem;
     letter-spacing: 0.06em;
@@ -423,7 +433,7 @@
   .member-url {
     font-family: var(--mono);
     font-size: 0.78rem;
-    color: var(--accent);
+    color: var(--cobalt);
     text-decoration: none;
     word-break: break-all;
     display: block;
@@ -447,7 +457,7 @@
     width: 7px;
     height: 7px;
     border-radius: 50%;
-    background: var(--accent);
+    background: var(--naranja);
     animation: pulse 2s infinite;
     flex-shrink: 0;
   }
@@ -462,13 +472,14 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    background: rgba(0,229,160,0.07);
-    border: 1px solid rgba(0,229,160,0.25);
+    background: rgba(255,215,71,0.2);
+    border: 1.5px solid rgba(255,215,71,0.6);
     border-radius: 8px;
     padding: 0.85rem 1rem;
-    font-family: var(--mono);
-    font-size: 0.82rem;
-    color: var(--accent);
+    font-family: var(--sans);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--denim);
   }
   .connected-banner .check { font-size: 1.1rem; }
 
@@ -488,7 +499,7 @@
     outline: none;
     transition: border-color var(--trans);
   }
-  .contacts-box:focus { border-color: var(--accent); }
+  .contacts-box:focus { border-color: var(--cobalt); }
 
   .copy-row {
     display: flex;
@@ -499,7 +510,7 @@
   .copy-confirm {
     font-family: var(--mono);
     font-size: 0.75rem;
-    color: var(--accent);
+    color: var(--hotpink);
     opacity: 0;
     transition: opacity 0.2s ease;
     white-space: nowrap;
@@ -537,8 +548,8 @@
     display: inline-block;
     width: 14px;
     height: 14px;
-    border: 2px solid rgba(0,0,0,0.3);
-    border-top-color: #000;
+    border: 2px solid rgba(255,255,255,0.35);
+    border-top-color: #fff;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
   }
@@ -551,10 +562,10 @@
   <!-- Header -->
   <header>
     <div class="logo">
-      <span class="logo-icon">⇄</span>
+      <span class="logo-icon">⊙</span>
       RoundTable
     </div>
-    <p class="tagline">// share links with your group — one tap</p>
+    <p class="tagline">share links with your group in one tap</p>
   </header>
 
   <!-- ── STEP 1: Entry ───────────────────────────────────────────── -->
@@ -684,7 +695,7 @@
 
 </div>
 
-<footer>contactswap · zero accounts · zero tracking</footer>
+<footer>roundtable · zero accounts · zero tracking</footer>
 
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
